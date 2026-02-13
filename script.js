@@ -1,109 +1,204 @@
-// Получаем ссылки на элементы
-const messagesDiv = document.getElementById('messages');
+// Supabase configuration
+const SUPABASE_URL = 'YOUR_SUPABASE_URL';
+const SUPABASE_KEY = 'YOUR_SUPABASE_ANON_KEY';
+
+// Initialize Supabase client
+const supabase = supabase.create({
+    url: SUPABASE_URL,
+    key: SUPABASE_KEY
+});
+
+// DOM Elements
+const messagesContainer = document.getElementById('messages');
 const messageInput = document.getElementById('messageInput');
 const sendButton = document.getElementById('sendButton');
-const statusDiv = document.getElementById('status');
 
-// Инициализация Firebase
-const database = firebase.database();
-const messagesRef = database.ref('messages');
+// Real-time subscription
+let subscription = null;
 
-// Генерируем уникальный идентификатор для пользователя
-const userId = localStorage.getItem('userId') || 
-               'user_' + Math.random().toString(36).substr(2, 9);
-localStorage.setItem('userId', userId);
-
-// Отслеживаем статус подключения
-database.ref('.info/connected').on('value', (snapshot) => {
-    if (snapshot.val()) {
-        statusDiv.textContent = 'Подключено';
-        statusDiv.classList.add('connected');
-    } else {
-        statusDiv.textContent = 'Отключено';
-        statusDiv.classList.remove('connected');
-    }
-});
-
-// Загружаем историю сообщений
-loadMessages();
-
-// Слушаем новые сообщения
-messagesRef.on('child_added', (snapshot) => {
-    const message = snapshot.val();
-    addMessageToDOM(message);
-    scrollToBottom();
-});
-
-// Обработчик отправки сообщения
-sendButton.addEventListener('click', sendMessage);
-messageInput.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') sendMessage();
-});
-
-function sendMessage() {
-    const text = messageInput.value.trim();
-    if (!text) return;
+// Initialize the chat
+async function initChat() {
+    // Load existing messages
+    await loadMessages();
     
-    const message = {
-        userId: userId,
-        text: text,
-        timestamp: Date.now(),
-        username: 'Пользователь'
-    };
+    // Subscribe to real-time updates
+    subscribeToMessages();
     
-    // Добавляем сообщение в базу данных
-    messagesRef.push(message);
-    
-    // Очищаем поле ввода
-    messageInput.value = '';
-    messageInput.focus();
+    // Setup event listeners
+    setupEventListeners();
 }
 
+// Load messages from database
+async function loadMessages() {
+    try {
+        const { data, error } = await supabase
+            .from('messages')
+            .select('*')
+            .order('created_at', { ascending: true })
+            .limit(50);
+        
+        if (error) throw error;
+        
+        if (data && data.length > 0) {
+            displayMessages(data);
+        } else {
+            messagesContainer.innerHTML = '<div class="loading">Пока нет сообщений. Будь первым!</div>';
+        }
+    } catch (error) {
+        console.error('Error loading messages:', error);
+        showError('Не удалось загрузить сообщения. Попробуйте позже.');
+    }
+}
+
+// Subscribe to real-time message updates
+function subscribeToMessages() {
+    subscription = supabase
+        .channel('public:messages')
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, 
+            (payload) => {
+                addMessageToDOM(payload.new);
+            })
+        .subscribe();
+}
+
+// Display messages in the chat
+function displayMessages(messages) {
+    messagesContainer.innerHTML = '';
+    
+    messages.forEach(message => {
+        addMessageToDOM(message);
+    });
+    
+    // Scroll to bottom
+    scrollToBottom();
+}
+
+// Add single message to DOM
 function addMessageToDOM(message) {
     const messageElement = document.createElement('div');
-    messageElement.className = message.userId === userId ? 'message message-user' : 'message message-other';
+    messageElement.className = 'message';
     
-    const time = new Date(message.timestamp);
-    const timeString = time.toLocaleTimeString('ru-RU', { 
-        hour: '2-digit', 
-        minute: '2-digit' 
+    const time = new Date(message.created_at).toLocaleTimeString('ru-RU', {
+        hour: '2-digit',
+        minute: '2-digit'
     });
     
     messageElement.innerHTML = `
-        <div class="message-text">${escapeHtml(message.text)}</div>
-        <div class="message-time">${timeString}</div>
+        <div class="message-content">${escapeHtml(message.content)}</div>
+        <div class="message-meta">
+            <span class="message-user">${escapeHtml(message.username || 'Аноним')}</span>
+            <span class="message-time">${time}</span>
+        </div>
     `;
     
-    messagesDiv.appendChild(messageElement);
+    messagesContainer.appendChild(messageElement);
+    scrollToBottom();
 }
 
-function loadMessages() {
-    messagesRef.limitToLast(50).once('value', (snapshot) => {
-        messagesDiv.innerHTML = '<div class="message-system">Загрузка сообщений...</div>';
+// Send message
+async function sendMessage() {
+    const content = messageInput.value.trim();
+    
+    if (!content) return;
+    
+    // Disable button during send
+    sendButton.disabled = true;
+    sendButton.innerHTML = '<span class="loading-dots"><span></span><span></span><span></span></span>';
+    
+    try {
+        // Generate random username
+        const username = generateRandomUsername();
         
-        snapshot.forEach((childSnapshot) => {
-            const message = childSnapshot.val();
-            addMessageToDOM(message);
-        });
+        const { data, error } = await supabase
+            .from('messages')
+            .insert([
+                { 
+                    content: content,
+                    username: username
+                }
+            ])
+            .select();
         
-        if (messagesDiv.children.length === 1) {
-            messagesDiv.innerHTML = '<div class="message-system">Добро пожаловать в Clutterfunk! Начните общение...</div>';
+        if (error) throw error;
+        
+        // Clear input
+        messageInput.value = '';
+        
+    } catch (error) {
+        console.error('Error sending message:', error);
+        showError('Не удалось отправить сообщение. Попробуйте еще раз.');
+    } finally {
+        // Re-enable button
+        sendButton.disabled = false;
+        sendButton.innerHTML = '<span class="send-icon">➤</span>';
+    }
+}
+
+// Generate random username
+function generateRandomUsername() {
+    const adjectives = ['Быстрый', 'Умный', 'Веселый', 'Тихий', 'Громкий', 'Смелый', 'Хитрый', 'Добрый'];
+    const nouns = ['Пингвин', 'Кот', 'Слон', 'Лиса', 'Волк', 'Медведь', 'Заяц', 'Енот'];
+    const numbers = Math.floor(Math.random() * 900) + 100;
+    
+    const adj = adjectives[Math.floor(Math.random() * adjectives.length)];
+    const noun = nouns[Math.floor(Math.random() * nouns.length)];
+    
+    return `${adj}${noun}${numbers}`;
+}
+
+// Setup event listeners
+function setupEventListeners() {
+    // Send message on button click
+    sendButton.addEventListener('click', sendMessage);
+    
+    // Send message on Enter key
+    messageInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            sendMessage();
         }
-        
-        scrollToBottom();
+    });
+    
+    // Auto-resize textarea (optional enhancement)
+    messageInput.addEventListener('input', () => {
+        messageInput.style.height = 'auto';
+        messageInput.style.height = (messageInput.scrollHeight) + 'px';
     });
 }
 
+// Scroll to bottom of messages
 function scrollToBottom() {
-    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    setTimeout(() => {
+        const wrapper = document.querySelector('.messages-wrapper');
+        wrapper.scrollTop = wrapper.scrollHeight;
+    }, 100);
 }
 
-// Защита от XSS
+// Show error message
+function showError(message) {
+    const errorDiv = document.createElement('div');
+    errorDiv.className = 'error-message';
+    errorDiv.textContent = message;
+    
+    messagesContainer.insertBefore(errorDiv, messagesContainer.firstChild);
+    
+    setTimeout(() => {
+        errorDiv.remove();
+    }, 3000);
+}
+
+// Escape HTML to prevent XSS
 function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
 }
 
-// Автофокус на поле ввода
-messageInput.focus();
+// Initialize chat on page load
+document.addEventListener('DOMContentLoaded', initChat);
+
+// Cleanup on unload
+window.addEventListener('beforeunload', () => {
+    if (subscription) {
+        subscription.unsubscribe();
+    }
+});
