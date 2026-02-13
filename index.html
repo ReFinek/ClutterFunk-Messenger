@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clutterfunk - Веб-мессенджер</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+    <script src="firebase-config.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Clutterfunk</h1>
+            <div class="status" id="status">Соединение...</div>
+        </header>
+        
+        <main>
+            <div class="chat-container">
+                <div class="messages" id="messages">
+                    <div class="message-system">Добро пожаловать в Clutterfunk! Начните общение...</div>
+                </div>
+                
+                <div class="input-area">
+                    <input type="text" id="messageInput" placeholder="Введите сообщение..." autocomplete="off">
+                    <button id="sendButton">Отправить</button>
+                </div>
+            </div>
+        </main>
+        
+        <footer>
+            <p>Clutterfunk © 2026 - Простой и функциональный веб-мессенджер</p>
+        </footer>
+    </div>
+    
+    <script src="script.js"></script>
+</body>
+</html>
