@@ -52,13 +52,29 @@ async function loadMessages() {
 
 // Subscribe to real-time message updates
 function subscribeToMessages() {
-    subscription = supabase
-        .channel('public:messages')
-        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, 
-            (payload) => {
-                addMessageToDOM(payload.new);
-            })
-        .subscribe();
+  // Удали старую подписку, если она есть
+  if (subscription) {
+    supabase.removeChannel(subscription);
+  }
+.subscribe((status) => {
+  console.log('Подписка статус:', status);
+  if (status === 'SUBSCRIBED') {
+    console.log('Успешно подписано на сообщения!');
+  }
+});
+  subscription = supabase
+    .channel('messages') // Просто имя канала, не нужно public:messages
+    .on('postgres_changes', {
+      event: 'INSERT',
+      schema: 'public',
+      table: 'messages'
+    }, (payload) => {
+      console.log('Получено новое сообщение:', payload);
+      addMessageToDOM(payload.new);
+    })
+    .subscribe((status) => {
+      console.log('Статус подписки:', status);
+    });
 }
 
 // Display messages in the chat
@@ -101,7 +117,7 @@ async function sendMessage() {
     
     if (!content) return;
     
-    // Disable button during send
+    console.log('Отправляю сообщение:', { content, username });
     sendButton.disabled = true;
     sendButton.innerHTML = '<span class="loading-dots"><span></span><span></span><span></span></span>';
     
