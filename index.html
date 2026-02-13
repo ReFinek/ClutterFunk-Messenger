@@ -3,38 +3,29 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>clutterfunk · минималистичный чат</title>
+    <title>ClutterFunk</title>
     <link rel="stylesheet" href="style.css">
-    <!-- Подключаем Firebase SDK (версии 9 compat) -->
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
 </head>
 <body>
     <div class="container">
-        <header>
-            <h1>clutterfunk</h1>
-            <p class="subtitle">общий чат · без регистрации</p>
-        </header>
-
-        <main class="chat">
-            <div class="messages" id="messages">
-                <!-- Сообщения будут подгружаться сюда -->
-            </div>
-
-            <form class="message-form" id="message-form">
-                <input type="text" id="user-name" placeholder="Ваше имя (необязательно)" autocomplete="off">
-                <div class="input-group">
-                    <input type="text" id="message-input" placeholder="Напишите сообщение..." autocomplete="off" required>
-                    <button type="submit" id="send-button">Отправить</button>
-                </div>
-            </form>
-        </main>
-
-        <footer>
-            <p>работает на Firebase · хостинг GitHub Pages</p>
-        </footer>
+        <div class="header">
+            <h1 class="logo">ClutterFunk</h1>
+        </div>
+        
+        <div class="chat-container">
+            <div id="messages" class="messages"></div>
+        </div>
+        
+        <div class="input-container">
+            <input type="text" id="messageInput" placeholder="Введите сообщение..." autocomplete="off">
+            <button id="sendButton">Отправить</button>
+        </div>
     </div>
 
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+    
     <script src="script.js"></script>
 </body>
 </html>
