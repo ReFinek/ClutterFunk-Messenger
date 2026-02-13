@@ -3,38 +3,50 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Clutterfunk - Веб-мессенджер</title>
+    <title>ClutterFunk - Простой мессенджер</title>
     <link rel="stylesheet" href="style.css">
-    <!-- Firebase SDK -->
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
-    <script src="firebase-config.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
 </head>
 <body>
     <div class="container">
-        <header>
-            <h1>Clutterfunk</h1>
-            <div class="status" id="status">Соединение...</div>
+        <header class="chat-header">
+            <div class="logo">
+                <span class="logo-icon">💬</span>
+                <h1>ClutterFunk</h1>
+            </div>
+            <div class="status">
+                <span class="status-dot"></span>
+                <span class="status-text">В сети</span>
+            </div>
         </header>
-        
-        <main>
-            <div class="chat-container">
-                <div class="messages" id="messages">
-                    <div class="message-system">Добро пожаловать в Clutterfunk! Начните общение...</div>
-                </div>
-                
-                <div class="input-area">
-                    <input type="text" id="messageInput" placeholder="Введите сообщение..." autocomplete="off">
-                    <button id="sendButton">Отправить</button>
+
+        <main class="chat-container">
+            <div class="messages-wrapper">
+                <div id="messages" class="messages">
+                    <!-- Сообщения будут загружаться сюда -->
                 </div>
             </div>
+
+            <div class="message-input-container">
+                <input 
+                    type="text" 
+                    id="messageInput" 
+                    class="message-input" 
+                    placeholder="Напишите сообщение..."
+                    maxlength="500"
+                >
+                <button id="sendButton" class="send-button">
+                    <span class="send-icon">➤</span>
+                </button>
+            </div>
         </main>
-        
-        <footer>
-            <p>Clutterfunk © 2026 - Простой и функциональный веб-мессенджер</p>
+
+        <footer class="chat-footer">
+            <p>ClutterFunk • Простой и быстрый мессенджер</p>
         </footer>
     </div>
-    
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="script.js"></script>
 </body>
 </html>
