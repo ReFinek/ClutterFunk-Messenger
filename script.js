@@ -5,6 +5,11 @@ const sendButton = document.getElementById('sendButton');
 const statusDiv = document.getElementById('status');
 const imageUpload = document.getElementById('imageUpload');
 
+// Контекстное меню
+const contextMenu = document.getElementById('contextMenu');
+const contextEdit = document.getElementById('contextEdit');
+const contextDelete = document.getElementById('contextDelete');
+
 // Модальное окно
 const editModal = document.getElementById('editModal');
 const closeModal = document.getElementById('closeModal');
@@ -18,6 +23,7 @@ const storage = firebase.storage();
 const messagesRef = database.ref('messages');
 
 let currentEditMessageId = null;
+let contextMenuMessageId = null;
 
 // Генерируем уникальный идентификатор для пользователя
 const userId = localStorage.getItem('userId') || 
@@ -65,10 +71,45 @@ messageInput.addEventListener('keypress', (e) => {
 // Обработчик загрузки изображения
 imageUpload.addEventListener('change', handleImageUpload);
 
+// Обработчики контекстного меню
+contextEdit.addEventListener('click', () => {
+    if (contextMenuMessageId) {
+        editMessage(contextMenuMessageId);
+        hideContextMenu();
+    }
+});
+
+contextDelete.addEventListener('click', () => {
+    if (contextMenuMessageId) {
+        deleteMessage(contextMenuMessageId);
+        hideContextMenu();
+    }
+});
+
 // Обработчики модального окна
 closeModal.addEventListener('click', closeEditModal);
 cancelEdit.addEventListener('click', closeEditModal);
 saveEdit.addEventListener('click', saveEditedMessage);
+
+// Закрытие контекстного меню при клике вне его
+document.addEventListener('click', (e) => {
+    if (!contextMenu.contains(e.target) && e.target !== contextMenu) {
+        hideContextMenu();
+    }
+});
+
+// Предотвращение стандартного контекстного меню на сообщениях
+document.addEventListener('contextmenu', (e) => {
+    if (e.target.closest('.message')) {
+        e.preventDefault();
+        const messageElement = e.target.closest('.message');
+        const messageId = messageElement.dataset.messageId;
+        
+        if (messageId) {
+            showContextMenu(e.clientX, e.clientY, messageId);
+        }
+    }
+});
 
 function sendMessage() {
     const text = messageInput.value.trim();
@@ -81,10 +122,7 @@ function sendMessage() {
         type: 'text'
     };
     
-    // Добавляем сообщение в базу данных
     messagesRef.push(message);
-    
-    // Очищаем поле ввода
     messageInput.value = '';
     messageInput.focus();
 }
@@ -93,7 +131,6 @@ function handleImageUpload(e) {
     const file = e.target.files[0];
     if (!file) return;
     
-    // Показываем сообщение о загрузке
     const loadingMessage = {
         userId: userId,
         text: 'Загрузка изображения...',
@@ -103,41 +140,29 @@ function handleImageUpload(e) {
     
     const loadingKey = messagesRef.push(loadingMessage).key;
     
-    // Загружаем изображение в Firebase Storage
     const storageRef = storage.ref('images/' + Date.now() + '_' + file.name);
-    
     const uploadTask = storageRef.put(file);
     
     uploadTask.on('state_changed',
-        (snapshot) => {
-            // Прогресс загрузки
-            const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-            // Можно показать прогресс если нужно
-        },
+        null,
         (error) => {
             console.error('Ошибка загрузки:', error);
-            // Удаляем сообщение о загрузке
             messagesRef.child(loadingKey).remove();
             alert('Ошибка загрузки изображения');
         },
         () => {
-            // Загрузка завершена
             uploadTask.snapshot.ref.getDownloadURL().then((downloadURL) => {
-                // Создаем сообщение с изображением
                 const imageMessage = {
                     userId: userId,
                     imageUrl: downloadURL,
                     timestamp: Date.now(),
                     type: 'image'
                 };
-                
-                // Обновляем сообщение в базе данных
                 messagesRef.child(loadingKey).set(imageMessage);
             });
         }
     );
     
-    // Очищаем инпут
     e.target.value = '';
 }
 
@@ -158,43 +183,11 @@ function addMessageToDOM(message, messageId) {
         messageContent = `
             <div class="message-text">${escapeHtml(message.text)}</div>
             <div class="message-time">${timeString}</div>
-            <div class="message-actions">
-                <button class="btn-edit" onclick="editMessage('${messageId}')">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-                    </svg>
-                    Редактировать
-                </button>
-                <button class="btn-delete" onclick="deleteMessage('${messageId}')">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <polyline points="3 6 5 6 21 6"></polyline>
-                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                    </svg>
-                    Удалить
-                </button>
-            </div>
         `;
     } else if (message.type === 'image') {
         messageContent = `
             <img src="${escapeHtml(message.imageUrl)}" class="message-image" alt="Изображение">
             <div class="message-time">${timeString}</div>
-            <div class="message-actions">
-                <button class="btn-edit" onclick="editMessage('${messageId}')">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-                    </svg>
-                    Редактировать
-                </button>
-                <button class="btn-delete" onclick="deleteMessage('${messageId}')">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <polyline points="3 6 5 6 21 6"></polyline>
-                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                    </svg>
-                    Удалить
-                </button>
-            </div>
         `;
     } else if (message.type === 'loading') {
         messageContent = `
@@ -204,19 +197,60 @@ function addMessageToDOM(message, messageId) {
         `;
     }
     
-    messageElement.innerHTML = messageContent;
+    // Добавляем кнопку меню для всех сообщений
+    const menuButton = `
+        <button class="menu-btn" onclick="showMessageMenu(event, '${messageId}')">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="1"></circle>
+                <circle cx="12" cy="5" r="1"></circle>
+                <circle cx="12" cy="19" r="1"></circle>
+            </svg>
+        </button>
+    `;
+    
+    messageElement.innerHTML = messageContent + menuButton;
     messagesDiv.appendChild(messageElement);
 }
 
 function updateMessageInDOM(messageId, message) {
     const messageElement = document.querySelector(`[data-message-id="${messageId}"]`);
     if (messageElement) {
-        // Удаляем старый контент и добавляем новый
-        messageElement.innerHTML = '';
-        addMessageToDOM(message, messageId);
-        // Заменяем элемент
         const parent = messageElement.parentNode;
-        const newElement = parent.lastChild;
+        const newElement = document.createElement('div');
+        newElement.className = messageElement.className;
+        newElement.dataset.messageId = messageId;
+        
+        const time = new Date(message.timestamp);
+        const timeString = time.toLocaleTimeString('ru-RU', { 
+            hour: '2-digit', 
+            minute: '2-digit' 
+        });
+        
+        let messageContent = '';
+        
+        if (message.type === 'text') {
+            messageContent = `
+                <div class="message-text">${escapeHtml(message.text)}</div>
+                <div class="message-time">${timeString}</div>
+            `;
+        } else if (message.type === 'image') {
+            messageContent = `
+                <img src="${escapeHtml(message.imageUrl)}" class="message-image" alt="Изображение">
+                <div class="message-time">${timeString}</div>
+            `;
+        }
+        
+        const menuButton = `
+            <button class="menu-btn" onclick="showMessageMenu(event, '${messageId}')">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="1"></circle>
+                    <circle cx="12" cy="5" r="1"></circle>
+                    <circle cx="12" cy="19" r="1"></circle>
+                </svg>
+            </button>
+        `;
+        
+        newElement.innerHTML = messageContent + menuButton;
         parent.replaceChild(newElement, messageElement);
     }
 }
@@ -228,10 +262,35 @@ function removeMessageFromDOM(messageId) {
     }
 }
 
+function showMessageMenu(event, messageId) {
+    event.stopPropagation();
+    showContextMenu(event.clientX, event.clientY, messageId);
+}
+
+function showContextMenu(x, y, messageId) {
+    contextMenuMessageId = messageId;
+    contextMenu.style.display = 'block';
+    contextMenu.style.left = (x + 5) + 'px';
+    contextMenu.style.top = (y + 5) + 'px';
+    
+    // Проверка выхода за границы экрана
+    const rect = contextMenu.getBoundingClientRect();
+    if (rect.right > window.innerWidth) {
+        contextMenu.style.left = (window.innerWidth - rect.width - 10) + 'px';
+    }
+    if (rect.bottom > window.innerHeight) {
+        contextMenu.style.top = (window.innerHeight - rect.height - 10) + 'px';
+    }
+}
+
+function hideContextMenu() {
+    contextMenu.style.display = 'none';
+    contextMenuMessageId = null;
+}
+
 function editMessage(messageId) {
     currentEditMessageId = messageId;
     
-    // Получаем текущее сообщение
     messagesRef.child(messageId).once('value', (snapshot) => {
         const message = snapshot.val();
         
@@ -240,7 +299,6 @@ function editMessage(messageId) {
             editModal.classList.add('show');
             editMessageText.focus();
         } else if (message && message.type === 'image') {
-            // Для изображения открываем диалог редактирования описания
             const newDescription = prompt('Введите новое описание для изображения:', message.text || '');
             if (newDescription !== null) {
                 messagesRef.child(messageId).update({
@@ -298,7 +356,6 @@ function scrollToBottom() {
     messagesDiv.scrollTop = messagesDiv.scrollHeight;
 }
 
-// Защита от XSS
 function escapeHtml(text) {
     if (!text) return '';
     const div = document.createElement('div');
@@ -306,7 +363,6 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
-// Автофокус на поле ввода
 messageInput.focus();
 
 // Закрытие модального окна при клике вне его
