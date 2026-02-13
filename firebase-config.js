@@ -1,12 +1,12 @@
 // TODO: Замените на ваши данные из консоли Firebase
 const firebaseConfig = {
-    apiKey: "YOUR_API_KEY",
-    authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-    databaseURL: "https://YOUR_PROJECT_ID-default-rtdb.firebaseio.com",
-    projectId: "YOUR_PROJECT_ID",
-    storageBucket: "YOUR_PROJECT_ID.appspot.com",
-    messagingSenderId: "YOUR_SENDER_ID",
-    appId: "YOUR_APP_ID"
+    apiKey: "AIzaSyCL0lOM0vTuNzC6UOcSOvMrtHaxvafkgdA",
+    authDomain: "clutterfunk-87ef9.firebaseapp.com",
+    databaseURL: "https://clutterfunk-87ef9-default-rtdb.firebaseio.com",
+    projectId: "clutterfunk-87ef9",
+    storageBucket: "clutterfunk-87ef9.firebasestorage.app",
+    messagingSenderId: "758463626255",
+    appId: "1:758463626255:web:58bc383b86ab2a9c3e377a"
 };
 
 // Initialize Firebase
