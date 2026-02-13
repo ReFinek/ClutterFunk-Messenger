@@ -8,7 +8,6 @@
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
     <script src="firebase-config.js"></script>
 </head>
 <body>
@@ -25,68 +24,34 @@
                 </div>
                 
                 <div class="input-area">
-                    <div class="input-actions">
-                        <label for="imageUpload" class="upload-btn" title="Отправить изображение">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-                                <circle cx="8.5" cy="8.5" r="1.5"></circle>
-                                <polyline points="21 15 16 10 5 21"></polyline>
-                            </svg>
-                            <input type="file" id="imageUpload" accept="image/*" hidden>
-                        </label>
-                    </div>
-                    
-                    <div class="input-wrapper">
-                        <input type="text" id="messageInput" placeholder="Введите сообщение..." autocomplete="off">
-                        <button id="sendButton" class="send-btn">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <line x1="22" y1="2" x2="11" y2="13"></line>
-                                <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
-                            </svg>
-                        </button>
-                    </div>
+                    <input type="text" id="messageInput" placeholder="Сообщение" autocomplete="off">
+                    <button id="sendButton">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="22" y1="2" x2="11" y2="13"></line>
+                            <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                        </svg>
+                    </button>
                 </div>
             </div>
         </main>
-        
-        <footer>
-            <p>Clutterfunk © 2026 - Простой и функциональный веб-мессенджер</p>
-        </footer>
     </div>
     
-    <!-- Контекстное меню -->
-    <div class="context-menu" id="contextMenu">
-        <button class="context-item" id="contextEdit">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+    <!-- Меню действий -->
+    <div class="actions-menu" id="actionsMenu">
+        <button class="action-btn" id="actionEdit">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
                 <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
             </svg>
-            Редактировать
+            <span>Редактировать</span>
         </button>
-        <button class="context-item" id="contextDelete">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <button class="action-btn" id="actionDelete">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <polyline points="3 6 5 6 21 6"></polyline>
                 <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
             </svg>
-            Удалить
+            <span>Удалить</span>
         </button>
-    </div>
-    
-    <!-- Модальное окно для редактирования -->
-    <div class="modal" id="editModal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3>Редактировать сообщение</h3>
-                <button class="close-btn" id="closeModal">&times;</button>
-            </div>
-            <div class="modal-body">
-                <textarea id="editMessageText" placeholder="Введите новое сообщение..." rows="4"></textarea>
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-cancel" id="cancelEdit">Отмена</button>
-                <button class="btn btn-save" id="saveEdit">Сохранить</button>
-            </div>
-        </div>
     </div>
     
     <script src="script.js"></script>
