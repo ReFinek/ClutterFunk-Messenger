@@ -1,220 +1,116 @@
-// Supabase configuration
-const SUPABASE_URL = 'https://jhfgxdjkoiayifljhcfk.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpoZmd4ZGprb2lheWlmbGpoY2ZrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEwMDc4MjgsImV4cCI6MjA4NjU4MzgyOH0.9-KE1rWCykQ0v-VmnE0d2syyjmfWedIfM9ZTsS5UWG4';
+// Конфигурация Firebase – замените на свои данные из консоли Firebase
+const firebaseConfig = {
+    apiKey: "AIzaSy...",
+    authDomain: "clutterfunk-chat.firebaseapp.com",
+    projectId: "clutterfunk-chat",
+    storageBucket: "clutterfunk-chat.appspot.com",
+    messagingSenderId: "...",
+    appId: "..."
+};
 
-// Initialize Supabase client
-const supabase = supabase.create({
-    url: SUPABASE_URL,
-    key: SUPABASE_KEY
-});
+// Инициализация Firebase
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
 
-// DOM Elements
+// Элементы DOM
 const messagesContainer = document.getElementById('messages');
-const messageInput = document.getElementById('messageInput');
-const sendButton = document.getElementById('sendButton');
+const messageForm = document.getElementById('message-form');
+const messageInput = document.getElementById('message-input');
+const userNameInput = document.getElementById('user-name');
 
-// Real-time subscription
-let subscription = null;
-
-// Initialize the chat
-async function initChat() {
-    // Load existing messages
-    await loadMessages();
-    
-    // Subscribe to real-time updates
-    subscribeToMessages();
-    
-    // Setup event listeners
-    setupEventListeners();
+// Вспомогательная функция для форматирования времени
+function formatTime(timestamp) {
+    if (!timestamp) return '';
+    const date = timestamp.toDate(); // Firestore Timestamp -> Date
+    return date.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
 }
 
-// Load messages from database
-async function loadMessages() {
-    try {
-        const { data, error } = await supabase
-            .from('messages')
-            .select('*')
-            .order('created_at', { ascending: true })
-            .limit(50);
-        
-        if (error) throw error;
-        
-        if (data && data.length > 0) {
-            displayMessages(data);
-        } else {
-            messagesContainer.innerHTML = '<div class="loading">Пока нет сообщений. Будь первым!</div>';
-        }
-    } catch (error) {
-        console.error('Error loading messages:', error);
-        showError('Не удалось загрузить сообщения. Попробуйте позже.');
-    }
+// Создание HTML элемента сообщения
+function createMessageElement(doc) {
+    const data = doc.data();
+    const messageDiv = document.createElement('div');
+    messageDiv.classList.add('message');
+    messageDiv.dataset.id = doc.id;
+
+    const metaDiv = document.createElement('div');
+    metaDiv.classList.add('meta');
+
+    const nameSpan = document.createElement('span');
+    nameSpan.classList.add('name');
+    nameSpan.textContent = data.userName?.trim() || 'Аноним';
+
+    const timeSpan = document.createElement('span');
+    timeSpan.classList.add('time');
+    timeSpan.textContent = formatTime(data.createdAt);
+
+    metaDiv.appendChild(nameSpan);
+    metaDiv.appendChild(timeSpan);
+
+    const textDiv = document.createElement('div');
+    textDiv.classList.add('text');
+    textDiv.textContent = data.text;
+
+    messageDiv.appendChild(metaDiv);
+    messageDiv.appendChild(textDiv);
+
+    return messageDiv;
 }
 
-// Subscribe to real-time message updates
-function subscribeToMessages() {
-  // Удали старую подписку, если она есть
-  if (subscription) {
-    supabase.removeChannel(subscription);
-  }
-.subscribe((status) => {
-  console.log('Подписка статус:', status);
-  if (status === 'SUBSCRIBED') {
-    console.log('Успешно подписано на сообщения!');
-  }
-});
-  subscription = supabase
-    .channel('messages') // Просто имя канала, не нужно public:messages
-    .on('postgres_changes', {
-      event: 'INSERT',
-      schema: 'public',
-      table: 'messages'
-    }, (payload) => {
-      console.log('Получено новое сообщение:', payload);
-      addMessageToDOM(payload.new);
-    })
-    .subscribe((status) => {
-      console.log('Статус подписки:', status);
-    });
-}
+// Загружаем сообщения в реальном времени (последние 50, сортировка по дате)
+const messagesQuery = db.collection('messages')
+    .orderBy('createdAt', 'desc')
+    .limit(50);
 
-// Display messages in the chat
-function displayMessages(messages) {
+messagesQuery.onSnapshot((snapshot) => {
+    // Очищаем контейнер
     messagesContainer.innerHTML = '';
-    
-    messages.forEach(message => {
-        addMessageToDOM(message);
-    });
-    
-    // Scroll to bottom
-    scrollToBottom();
-}
 
-// Add single message to DOM
-function addMessageToDOM(message) {
-    const messageElement = document.createElement('div');
-    messageElement.className = 'message';
-    
-    const time = new Date(message.created_at).toLocaleTimeString('ru-RU', {
-        hour: '2-digit',
-        minute: '2-digit'
-    });
-    
-    messageElement.innerHTML = `
-        <div class="message-content">${escapeHtml(message.content)}</div>
-        <div class="message-meta">
-            <span class="message-user">${escapeHtml(message.username || 'Аноним')}</span>
-            <span class="message-time">${time}</span>
-        </div>
-    `;
-    
-    messagesContainer.appendChild(messageElement);
-    scrollToBottom();
-}
+    // Перебираем документы (они идут от новых к старым)
+    // Чтобы выводить в хронологическом порядке (сверху старые, снизу новые),
+    // собираем массив и вставляем в обратном порядке.
+    const docs = [];
+    snapshot.forEach(doc => docs.push(doc));
 
-// Send message
-async function sendMessage() {
-    const content = messageInput.value.trim();
-    
-    if (!content) return;
-    
-    console.log('Отправляю сообщение:', { content, username });
-    sendButton.disabled = true;
-    sendButton.innerHTML = '<span class="loading-dots"><span></span><span></span><span></span></span>';
-    
+    // Сортируем по возрастанию времени (старые сверху)
+    docs.sort((a, b) => {
+        const ta = a.data().createdAt;
+        const tb = b.data().createdAt;
+        if (!ta || !tb) return 0;
+        return ta.toDate() - tb.toDate();
+    });
+
+    docs.forEach(doc => {
+        messagesContainer.appendChild(createMessageElement(doc));
+    });
+
+    // Автоскролл вниз (к последнему сообщению)
+    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+}, (error) => {
+    console.error("Ошибка загрузки сообщений:", error);
+});
+
+// Отправка сообщения
+messageForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const text = messageInput.value.trim();
+    if (!text) return;
+
+    const userName = userNameInput.value.trim() || 'Аноним';
+
     try {
-        // Generate random username
-        const username = generateRandomUsername();
-        
-        const { data, error } = await supabase
-            .from('messages')
-            .insert([
-                { 
-                    content: content,
-                    username: username
-                }
-            ])
-            .select();
-        
-        if (error) throw error;
-        
-        // Clear input
+        await db.collection('messages').add({
+            text: text,
+            userName: userName,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+
+        // Очистить поле сообщения, имя оставляем (можно сохранять в localStorage при желании)
         messageInput.value = '';
-        
+        // Фокус остаётся на поле ввода для удобства
+        messageInput.focus();
     } catch (error) {
-        console.error('Error sending message:', error);
-        showError('Не удалось отправить сообщение. Попробуйте еще раз.');
-    } finally {
-        // Re-enable button
-        sendButton.disabled = false;
-        sendButton.innerHTML = '<span class="send-icon">➤</span>';
-    }
-}
-
-// Generate random username
-function generateRandomUsername() {
-    const adjectives = ['Быстрый', 'Умный', 'Веселый', 'Тихий', 'Громкий', 'Смелый', 'Хитрый', 'Добрый'];
-    const nouns = ['Пингвин', 'Кот', 'Слон', 'Лиса', 'Волк', 'Медведь', 'Заяц', 'Енот'];
-    const numbers = Math.floor(Math.random() * 900) + 100;
-    
-    const adj = adjectives[Math.floor(Math.random() * adjectives.length)];
-    const noun = nouns[Math.floor(Math.random() * nouns.length)];
-    
-    return `${adj}${noun}${numbers}`;
-}
-
-// Setup event listeners
-function setupEventListeners() {
-    // Send message on button click
-    sendButton.addEventListener('click', sendMessage);
-    
-    // Send message on Enter key
-    messageInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') {
-            sendMessage();
-        }
-    });
-    
-    // Auto-resize textarea (optional enhancement)
-    messageInput.addEventListener('input', () => {
-        messageInput.style.height = 'auto';
-        messageInput.style.height = (messageInput.scrollHeight) + 'px';
-    });
-}
-
-// Scroll to bottom of messages
-function scrollToBottom() {
-    setTimeout(() => {
-        const wrapper = document.querySelector('.messages-wrapper');
-        wrapper.scrollTop = wrapper.scrollHeight;
-    }, 100);
-}
-
-// Show error message
-function showError(message) {
-    const errorDiv = document.createElement('div');
-    errorDiv.className = 'error-message';
-    errorDiv.textContent = message;
-    
-    messagesContainer.insertBefore(errorDiv, messagesContainer.firstChild);
-    
-    setTimeout(() => {
-        errorDiv.remove();
-    }, 3000);
-}
-
-// Escape HTML to prevent XSS
-function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-}
-
-// Initialize chat on page load
-document.addEventListener('DOMContentLoaded', initChat);
-
-// Cleanup on unload
-window.addEventListener('beforeunload', () => {
-    if (subscription) {
-        subscription.unsubscribe();
+        console.error("Ошибка отправки:", error);
+        alert("Не удалось отправить сообщение. Попробуйте позже.");
     }
 });
